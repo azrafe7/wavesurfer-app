@@ -516,6 +516,7 @@
                         end: region.end,
                         description: region.data && region.data.description ? region.data.description : ''
                     }));
+                    console.log(['Saving regions:', JSON.stringify(regionsData)]);
 
                     $.ajax({
                         url: 'regions.php',
