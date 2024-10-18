@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Editor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <style>
+        #video-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            position: relative;
+        }
+
+        #video-player {
+            width: 100%;
+            height: 100%;
+        }
+
+        #waveform {
+            margin-top: 20px;
+            position: relative;
+            height: 100px;
+        }
+
+        .region {
+            background-color: rgba(0, 123, 255, 0.5);
+            position: absolute;
+            height: 100%;
+        }
+
+        #whisper-sentences {
+            height: 300px;
+            overflow-y: auto;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .clickable-word {
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .clickable-word:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <script>
+        $(document).ready(function () {
+            if (typeof wavesurfer === 'undefined') {
+                const videoUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.mp4';
+                const whisperJsonUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.json';
+                const regionsColor = 'rgba(255, 0, 0, 0.3)';
+
+                let video = $('#video-player')[0];
+                let whisperData = null;
+                let regions = [];
+                let preliminaryRegion = null;
+                let wordSelection = {
+                    start: null,
+                    end: null
+                };
+                let wavesurfer;
+                let wsRegions;
+                let activeRegion = null;
+                let isPlayingFull = true;
+                let regionsLoaded = false;
+
+                video.src = videoUrl;
+
+                wavesurfer = WaveSurfer.create({
+                    container: '#waveform',
+                    waveColor: 'violet',
+                    progressColor: 'purple',
+                    minPxPerSec: 50,
+                    scrollParent: true,
+                    height: 100,
+                    media: video,
+                    mediaControls: false,
+                    interact: true,
+                    cursorWidth: 1,
+                    cursorColor: 'red',
+                    hideScrollbar: false,
+                    autoCenter: true,
+                    autoScroll: true,
+                });
+
+                wavesurfer.load(videoUrl);
+
+
+
+
+                wavesurfer.on('ready', function () {
+                    console.log('WaveSurfer is ready');
+                    wavesurfer.seekTo(0);
+
+                    wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+                    wsRegions.enableDragSelection({
+                        color: 'rgba(255, 165, 0, 0.3)'
+                    });
+
+                    wsRegions.on('region-created', function (region) {
+                        preliminaryRegion = region;
+                        $('#create-region-btn').removeClass('d-none');
+                    });
+
+                    wsRegions.on('region-updated', function (region) {
+                        let index = regions.findIndex(r => r.id === region.id);
+                        if (index !== -1) {
+                            regions[index] = region;
+                            updateRegionsList();
+                            saveRegions();
+                        } else {
+                            preliminaryRegion = region;
+                            $('#create-region-btn').removeClass('d-none');
+                        }
+                    });
+
+                    if (!regionsLoaded) {
+                        loadSavedRegions();
+                    }
+                });
+
+
+
+                wavesurfer.on('error', function (e) {
+                    console.error('WaveSurfer error:', e);
+                });
+
+                wavesurfer.on('seek', function (progress) {
+                    video.currentTime = wavesurfer.getCurrentTime();
+                });
+
+                $('#play-pause-btn').on('click', function () {
+                    togglePlayPause();
+                });
+
+                $(document).on('keydown', function (e) {
+                    if ($('#search-input').is(':focus')) return;
+
+                    if (e.key === ' ') {
+                        e.preventDefault();
+                        togglePlayPause();
+                    }
+
+                    if (e.ctrlKey && e.altKey && e.key === 'c') {
+                        e.preventDefault();
+                        $('#create-region-btn').click();
+                    }
+                });
+
+                function togglePlayPause() {
+                    isPlayingFull = true;
+                    if (video.paused) {
+                        video.play();
+                        wavesurfer.play();
+                    } else {
+                        video.pause();
+                        wavesurfer.pause();
+                    }
+                }
+
+                wavesurfer.on('audioprocess', function () {
+                    syncVideoAndWaveform();
+                    updateCurrentTime();
+                    highlightCurrentWord();
+                });
+
+                video.addEventListener('timeupdate', function () {
+                    syncVideoAndWaveform();
+                    updateCurrentTime();
+                    highlightCurrentWord();
+                });
+
+                function syncVideoAndWaveform() {
+                    if (Math.abs(wavesurfer.getCurrentTime() - video.currentTime) > 0.1) {
+                        wavesurfer.setCurrentTime(video.currentTime);
+                    }
+                }
+
+                function updateCurrentTime() {
+                    $('#current-time').text(formatTime(video.currentTime));
+                }
+
+                function highlightCurrentWord() {
+                    let currentTime = video.currentTime;
+                    $('.clickable-word').removeClass('bg-info');
+                    $('.clickable-word').each(function () {
+                        let wordStart = parseFloat($(this).data('start'));
+                        let wordEnd = parseFloat($(this).data('end'));
+                        if (currentTime >= wordStart && currentTime < wordEnd) {
+                            $(this).addClass('bg-info');
+                        }
+                    });
+                }
+
+                $.getJSON(whisperJsonUrl, function (data) {
+                    whisperData = data;
+                    displayWhisperSentences(whisperData);
+                }).fail(function () {
+                    console.error("Failed to load Whisper JSON");
+                });
+
+                function displayWhisperSentences(data) {
+                    const $container = $('#whisper-sentences');
+                    data.segments.forEach((segment, index) => {
+                        const $sentence = $('<p>');
+                        segment.words.forEach(word => {
+                            const $word = $('<span>')
+                                .addClass('clickable-word')
+                                .text(word.word)
+                                .attr('data-start', word.start)
+                                .attr('data-end', word.end)
+                                .mousedown(function (event) {
+                                    handleWordMouseDown($(this), event);
+                                });
+                            $sentence.append($word);
+                        });
+                        $container.append($sentence);
+                    });
+
+                    $('#create-region-btn').click(function () {
+                        if (preliminaryRegion) {
+                            createRegionFromWaveformSelection();
+                        } else if (wordSelection.start && wordSelection.end) {
+                            createRegionFromWordSelection();
+                        }
+                    });
+
+                    $(document).mouseup(function () {
+                        updateWordSelection();
+                    });
+
+                    $container.on('mousemove', '.clickable-word', function (event) {
+                        if (event.shiftKey && wordSelection.start) {
+                            wordSelection.end = $(this);
+                            updateWordSelection();
+                        }
+                    });
+                }
+
+                function handleWordMouseDown($word, event) {
+                    if (event.shiftKey && wordSelection.start) {
+                        event.preventDefault();
+                        wordSelection.end = $word;
+                        updateWordSelection();
+                    } else {
+                        clearWordSelection();
+                        wordSelection.start = $word;
+                        let time = parseFloat($word.attr('data-start'));
+                        video.currentTime = time;
+                        video.pause();
+                        wavesurfer.pause();
+                    }
+                }
+
+                function updateWordSelection() {
+                    $('.clickable-word').removeClass('bg-warning');
+                    if (wordSelection.start && wordSelection.end) {
+                        let startIndex = $('.clickable-word').index(wordSelection.start);
+                        let endIndex = $('.clickable-word').index(wordSelection.end);
+                        if (startIndex > endIndex) {
+                            [startIndex, endIndex] = [endIndex, startIndex];
+                        }
+                        $('.clickable-word').slice(startIndex, endIndex + 1).addClass('bg-warning');
+                        $('#create-region-btn').removeClass("d-none");
+                        updatePreliminaryRegion();
+                    } else if (wordSelection.start) {
+                        wordSelection.start.addClass('bg-warning');
+                        $('#create-region-btn').addClass("d-none");
+                    } else {
+                        $('#create-region-btn').addClass("d-none");
+                    }
+                }
+
+                function updatePreliminaryRegion() {
+                    if (preliminaryRegion) {
+                        preliminaryRegion.remove();
+                    }
+                    let startTime = parseFloat(wordSelection.start.attr('data-start'));
+                    let endTime = parseFloat(wordSelection.end.attr('data-end'));
+                    if (startTime > endTime) {
+                        [startTime, endTime] = [endTime, startTime];
+                    }
+                    preliminaryRegion = wsRegions.addRegion({
+                        start: startTime,
+                        end: endTime,
+                        color: 'rgba(255, 165, 0, 0.3)',
+                        drag: false,
+                        resize: false
+                    });
+                }
+
+                function createRegionFromWordSelection() {
+                    if (wordSelection.start && wordSelection.end) {
+                        let startTime = parseFloat(wordSelection.start.attr('data-start'));
+                        let endTime = parseFloat(wordSelection.end.attr('data-end'));
+                        if (startTime > endTime) {
+                            [startTime, endTime] = [endTime, startTime];
+                        }
+
+                        let newRegion = wsRegions.addRegion({
+                            start: startTime,
+                            end: endTime,
+                            color: regionsColor,
+                            drag: true,
+                            resize: true,
+                            data: { description: '' }
+                        });
+
+                        regions.push(newRegion);
+                        updateRegionsList();
+                        clearWordSelection();
+                        saveRegions();
+                    }
+                }
+
+                function createRegionFromWaveformSelection() {
+                    if (preliminaryRegion) {
+                        let newRegion = wsRegions.addRegion({
+                            start: preliminaryRegion.start,
+                            end: preliminaryRegion.end,
+                            color: regionsColor,
+                            drag: true,
+                            resize: true,
+                            data: { description: '' }
+                        });
+
+                        regions.push(newRegion);
+                        updateRegionsList();
+                        preliminaryRegion.remove();
+                        preliminaryRegion = null;
+                        $('#create-region-btn').addClass('d-none');
+                        saveRegions();
+                    }
+                }
+
+
+
+                function clearWordSelection() {
+                    $('.clickable-word').removeClass('bg-warning');
+                    wordSelection = {
+                        start: null,
+                        end: null
+                    };
+                    $('#create-region-btn').addClass("d-none");
+                    if (preliminaryRegion && typeof preliminaryRegion.remove === 'function') {
+                        try {
+                            preliminaryRegion.remove();
+                        } catch (e) {
+                            console.warn('Error removing preliminary region:', e);
+                        }
+                        preliminaryRegion = null;
+                    }
+                }
+
+                $('#search-btn').click(function () {
+                    performSearch();
+                });
+
+                $('#search-input').on('keyup', function (e) {
+                    if (e.key === 'Enter') {
+                        performSearch();
+                    }
+                });
+
+                function performSearch() {
+                    let searchTerm = $('#search-input').val().toLowerCase();
+                    if (whisperData && searchTerm) {
+                        highlightSearchResult(searchTerm);
+                    }
+                }
+
+                function highlightSearchResult(searchTerm) {
+                    $('.clickable-word').removeClass('bg-danger');
+                    $('.clickable-word').each(function () {
+                        if ($(this).text().toLowerCase().includes(searchTerm)) {
+                            $(this).addClass('bg-danger');
+                        }
+                    });
+                }
+
+
+
+                function updateRegionsList() {
+                    let $list = $('#regions-ul').empty();
+                    regions.sort((a, b) => a.start - b.start);
+                    regions.forEach((region, index) => {
+                        let $li = $('<li>').addClass('list-group-item');
+                        $li.html(`
+                        <div class="row">
+                <div class="col-md-3 d-flex align-items-center"><span class="badge bg-body-tertiary text-secondary font-monospace me-2">${index + 1}</span> ${formatTime(region.start)} - ${formatTime(region.end)}</div>
+                <div class="col-md-7">
+                <div class="input-group">
+                <input type="text" class="form-control form-control-sm" placeholder="Add description" value="${region.data && region.data.description ? region.data.description : ''}">
+                <button class="btn btn-primary btn-sm">Save</button>
+                </div>
+                </div>
+                <div class="col-md-2">
+                <div class="btn-group w-100">
+                <button class="btn btn-primary btn-sm play-region-btn">Play</button>
+                <button class="btn btn-danger btn-sm delete-region-btn">Delete</button>
+                </div>
+                </div>
+                </div>
+            `);
+                        $li.find('.play-region-btn').click(function () {
+                            playRegion(region);
+                        });
+                        $li.find('.delete-region-btn').click(function () {
+                            if (confirm('Are you sure you want to delete this region?')) {
+                                region.remove();
+                                regions = regions.filter(r => r !== region);
+                                updateRegionsList();
+                                saveRegions();
+                            }
+                        });
+                        $li.find('input').on('change', function () {
+                            if (!region.data) region.data = {};
+                            region.data.description = $(this).val();
+                            saveRegions();
+                        });
+                        $list.append($li);
+                    });
+                }
+
+                function playRegion(region) {
+                    wavesurfer.pause();
+                    video.currentTime = region.start;
+                    wavesurfer.play(region.start);
+
+                    let checkEnd = setInterval(() => {
+                        if (wavesurfer.getCurrentTime() >= region.end) {
+                            wavesurfer.pause();
+                            clearInterval(checkEnd);
+                        }
+                    }, 10);
+                }
+
+                $('#clear-regions-btn').click(function () {
+                    if (confirm('Are you sure you want to clear all regions?')) {
+                        clearAllRegions();
+                    }
+                });
+
+                function clearAllRegions() {
+
+                    wsRegions.clearRegions();
+
+
+                    regions.forEach(region => {
+                        if (region && typeof region.remove === 'function') {
+                            try {
+                                region.remove();
+                            } catch (e) {
+                                console.warn('Error removing region:', e);
+                            }
+                        }
+                    });
+
+
+                    regions = [];
+
+
+                    updateRegionsList();
+
+
+                    clearWordSelection();
+
+
+                    saveRegions();
+
+                    console.log('All regions cleared');
+                }
+
+                function formatTime(seconds) {
+                    let date = new Date(seconds * 1000);
+                    let hours = String(date.getUTCHours()).padStart(2, '0');
+                    let minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                    let secs = String(date.getUTCSeconds()).padStart(2, '0');
+                    let millis = String(date.getUTCMilliseconds()).padStart(3, '0');
+                    return `${hours}:${minutes}:${secs}.${millis}`;
+                }
+
+                $('#waveform').on('wheel', function (e) {
+                    e.preventDefault();
+                    const scrollSpeed = 50;
+                    const direction = e.originalEvent.deltaY > 0 ? 1 : -1;
+                    const currentScroll = wavesurfer.getScrollX();
+                    wavesurfer.setScrollX(currentScroll + direction * scrollSpeed);
+                });
+
+                wavesurfer.on('audioprocess', function () {
+                    if (!wavesurfer.isPlaying()) return;
+
+                    const currentTime = wavesurfer.getCurrentTime();
+                    const duration = wavesurfer.getDuration();
+                    const containerWidth = wavesurfer.getWrapper().clientWidth;
+                    const scrollWidth = wavesurfer.getScrollWidth();
+
+                    const progress = currentTime / duration;
+                    const centerPosition = progress * scrollWidth - containerWidth / 2;
+
+                    wavesurfer.setScrollX(Math.max(0, centerPosition));
+                });
+
+                function saveRegions() {
+                    const regionsData = regions.map(region => ({
+                        start: region.start,
+                        end: region.end,
+                        description: region.data && region.data.description ? region.data.description : ''
+                    }));
+
+                    $.ajax({
+                        url: 'regions.php',
+                        method: 'POST',
+                        data: JSON.stringify(regionsData),
+                        contentType: 'application/json',
+                        success: function (response) {
+                            console.log('Save regions response:', response);
+                            if (response.success) {
+                                console.log('Regions saved successfully');
+                                if (response.filename) {
+                                    console.log('Saved to:', response.filename);
+                                }
+                            } else {
+                                console.error('Error saving regions:', response.message);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('Error saving regions:', error);
+                            if (xhr.responseText) {
+                                console.error('Server response:', xhr.responseText);
+                            }
+                        }
+                    });
+                }
+
+
+
+                function loadSavedRegions() {
+                    if (regionsLoaded) {
+                        console.log("Regions already loaded, skipping.");
+                        return;
+                    }
+
+                    $.ajax({
+                        url: 'regions.php',
+                        method: 'GET',
+                        dataType: 'json',
+                        success: function (response) {
+                            console.log('Load regions response:', response);
+                            if (Array.isArray(response) && response.length > 0) {
+                                regions = [];
+                                response.forEach(regionData => {
+                                    let newRegion = wsRegions.addRegion({
+                                        start: regionData.start,
+                                        end: regionData.end,
+                                        color: regionsColor,
+                                        drag: true,
+                                        resize: true,
+                                        data: { description: regionData.description || '' }
+                                    });
+                                    regions.push(newRegion);
+                                });
+                                updateRegionsList();
+                                console.log("Loaded saved regions:", response.length);
+                            } else if (response.success === false) {
+                                console.error("Failed to load saved regions:", response.message);
+                            } else {
+                                console.log("No saved regions to load.");
+                            }
+                            regionsLoaded = true;
+
+                        },
+                        error: function (xhr, status, error) {
+                            console.error("Failed to load saved regions:", error);
+                            if (xhr.responseText) {
+                                console.error("Server response:", xhr.responseText);
+                            }
+                            regionsLoaded = true;
+                        }
+                    });
+                }
+
+
+
+                function resumeAudioContext() {
+                    if (wavesurfer.backend && wavesurfer.backend.ac && wavesurfer.backend.ac.state === 'suspended') {
+                        wavesurfer.backend.ac.resume().then(() => {
+                            console.log('AudioContext resumed successfully');
+                        }).catch(error => {
+                            console.error('Failed to resume AudioContext:', error);
+                        });
+                    }
+                }
+
+                $(document).on('click', resumeAudioContext);
+                $('#play-pause-btn').on('click', resumeAudioContext);
+
+                $('[data-toggle="tooltip"]').tooltip();
+
+            }
+
+
+
+        });
+    </script>
+
+</head>
+
+<body>
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-md-4">
+                <div id="video-container" class="bg-body-tertiary p-3 rounded h-100">
+                    <video id="video-player" class="w-100" preload="auto"></video>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="rounded p-3 bg-body-tertiary h-100">
+                    <div id="transcription-search" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search-input"
+                                placeholder="Search transcription">
+                            <button class="btn btn-primary" id="search-btn">Search</button>
+                        </div>
+                    </div>
+                    <div id="whisper-sentences" class="bg-body-secondary p-3"></div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-8">
+                <button id="play-pause-btn" class="btn btn-primary">Play/Pause</button>
+                <button id="create-region-btn" class="btn btn-secondary d-none">Create Region</button>
+                <button id="clear-regions-btn" class="btn btn-danger">Clear Regions</button>
+                <button id="export-regions-btn" class="btn btn-danger d-none">Export </button>
+            </div>
+            <div class="col-md-4 text-end">
+                <span id="current-time" class="font-monospace fs-2"></span>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <div id="waveform"></div>
+            <div id="waveform-timeline" class="mb-5 scrollable-element"></div>
+        </div>
+
+
+        <div id="regions-list" class="mt-3">
+            <ul id="regions-ul" class="list-group"></ul>
+        </div>
+
+    </div>
+</body>
+
+</html>
