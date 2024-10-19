@@ -203,6 +203,14 @@
                         let wordEnd = parseFloat($(this).data('end'));
                         if (currentTime >= wordStart && currentTime < wordEnd) {
                             $(this).addClass('bg-info');
+                            // scroll word into view
+                            scrollOptions = {
+                                behaviour: {
+                                    smooth:true, 
+                                }, 
+                                block: "nearest"
+                            };
+                            $(this)[0].scrollIntoView(scrollOptions);
                         }
                     });
                 }
