@@ -517,7 +517,7 @@
                     const currentTime = wavesurfer.getCurrentTime();
                     const duration = wavesurfer.getDuration();
                     const containerWidth = wavesurfer.getWrapper().clientWidth;
-                    const scrollWidth = wavesurfer.getScrollWidth();
+                    const scrollWidth = wavesurfer.getScrollWidth();  // ERROR: getScrollWidth is not a function
 
                     const progress = currentTime / duration;
                     const centerPosition = progress * scrollWidth - containerWidth / 2;
