@@ -110,6 +110,13 @@
                         $('#create-region-btn').removeClass('d-none');
                     });
 
+                    //wsRegions.on('region-updated', function(region){
+                    //      var regions = region.wavesurfer.regions.list;
+                    //      var keys = Object.keys(regions);
+                    //      if(keys.length > 1){
+                    //        regions[keys[0]].remove();
+                    //      }
+                    //});
                     wsRegions.on('region-updated', function (region) {
                         let index = regions.findIndex(r => r.id === region.id);
                         if (index !== -1) {
@@ -492,8 +499,8 @@
                     e.preventDefault();
                     const scrollSpeed = 50;
                     const direction = e.originalEvent.deltaY > 0 ? 1 : -1;
-                    const currentScroll = wavesurfer.getScrollX();
-                    wavesurfer.setScrollX(currentScroll + direction * scrollSpeed);
+                    const currentScroll = wavesurfer.getScroll();
+                    wavesurfer.setScroll(currentScroll + direction * scrollSpeed);
                 });
 
                 wavesurfer.on('audioprocess', function () {
@@ -507,7 +514,7 @@
                     const progress = currentTime / duration;
                     const centerPosition = progress * scrollWidth - containerWidth / 2;
 
-                    wavesurfer.setScrollX(Math.max(0, centerPosition));
+                    wavesurfer.setScroll(Math.max(0, centerPosition));
                 });
 
                 function saveRegions() {
