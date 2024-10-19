@@ -61,7 +61,7 @@
                 let video = $('#video-player')[0];
                 let whisperData = null;
                 let regions = [];
-                let preliminaryRegion = null;
+                let highlightRegion = null;
                 let wordSelection = {
                     start: null,
                     end: null
@@ -106,7 +106,17 @@
                     });
 
                     wsRegions.on('region-created', function (region) {
-                        preliminaryRegion = region;
+                        let _regions = wsRegions.regions;
+                        let regionIndex = _regions.findIndex((r) => r.id === region.id);
+                        if (regionIndex > 0) {
+                            _regions.slice(0, 1).forEach((t => t.remove()));
+                        }
+                        if (regionIndex === -1) {
+                            if (highlightRegion?.element) {
+                                highlightRegion.remove();
+                            }   
+                            highlightRegion = region;
+                        }
                         $('#create-region-btn').removeClass('d-none');
                     });
 
@@ -124,7 +134,7 @@
                             updateRegionsList();
                             saveRegions();
                         } else {
-                            preliminaryRegion = region;
+                            highlightRegion = region;
                             $('#create-region-btn').removeClass('d-none');
                         }
                     });
@@ -241,7 +251,7 @@
                     });
 
                     $('#create-region-btn').click(function () {
-                        if (preliminaryRegion) {
+                        if (highlightRegion) {
                             createRegionFromWaveformSelection();
                         } else if (wordSelection.start && wordSelection.end) {
                             createRegionFromWordSelection();
@@ -285,7 +295,7 @@
                         }
                         $('.clickable-word').slice(startIndex, endIndex + 1).addClass('bg-warning');
                         $('#create-region-btn').removeClass("d-none");
-                        updatePreliminaryRegion();
+                        updateHighlightRegion();
                     } else if (wordSelection.start) {
                         wordSelection.start.addClass('bg-warning');
                         $('#create-region-btn').addClass("d-none");
@@ -294,16 +304,16 @@
                     }
                 }
 
-                function updatePreliminaryRegion() {
-                    if (preliminaryRegion) {
-                        preliminaryRegion.remove();
+                function updateHighlightRegion() {
+                    if (highlightRegion) {
+                        highlightRegion.remove();
                     }
                     let startTime = parseFloat(wordSelection.start.attr('data-start'));
                     let endTime = parseFloat(wordSelection.end.attr('data-end'));
                     if (startTime > endTime) {
                         [startTime, endTime] = [endTime, startTime];
                     }
-                    preliminaryRegion = wsRegions.addRegion({
+                    highlightRegion = wsRegions.addRegion({
                         start: startTime,
                         end: endTime,
                         color: 'rgba(255, 165, 0, 0.3)',
@@ -337,10 +347,10 @@
                 }
 
                 function createRegionFromWaveformSelection() {
-                    if (preliminaryRegion) {
+                    if (highlightRegion) {
                         let newRegion = wsRegions.addRegion({
-                            start: preliminaryRegion.start,
-                            end: preliminaryRegion.end,
+                            start: highlightRegion.start,
+                            end: highlightRegion.end,
                             color: regionsColor,
                             drag: true,
                             resize: true,
@@ -349,8 +359,8 @@
 
                         regions.push(newRegion);
                         updateRegionsList();
-                        preliminaryRegion.remove();
-                        preliminaryRegion = null;
+                        highlightRegion.remove();
+                        highlightRegion = null;
                         $('#create-region-btn').addClass('d-none');
                         saveRegions();
                     }
@@ -365,13 +375,13 @@
                         end: null
                     };
                     $('#create-region-btn').addClass("d-none");
-                    if (preliminaryRegion && typeof preliminaryRegion.remove === 'function') {
+                    if (highlightRegion && typeof highlightRegion.remove === 'function') {
                         try {
-                            preliminaryRegion.remove();
+                            highlightRegion.remove();
                         } catch (e) {
                             console.warn('Error removing preliminary region:', e);
                         }
-                        preliminaryRegion = null;
+                        highlightRegion = null;
                     }
                 }
 
