@@ -120,13 +120,6 @@
                         $('#create-region-btn').removeClass('d-none');
                     });
 
-                    //wsRegions.on('region-updated', function(region){
-                    //      var regions = region.wavesurfer.regions.list;
-                    //      var keys = Object.keys(regions);
-                    //      if(keys.length > 1){
-                    //        regions[keys[0]].remove();
-                    //      }
-                    //});
                     wsRegions.on('region-updated', function (region) {
                         let index = regions.findIndex(r => r.id === region.id);
                         if (index !== -1) {
