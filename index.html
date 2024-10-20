@@ -123,8 +123,6 @@
                             regions[index] = region;
                             updateRegionsList();
                             saveRegions();
-                        } else {
-                            $('#create-region-btn').removeClass('d-none');
                         }
                     });
 
@@ -292,26 +290,23 @@
                             [startIndex, endIndex] = [endIndex, startIndex];
                         }
                         $('.clickable-word').slice(startIndex, endIndex + 1).addClass('bg-warning');
-                        $('#create-region-btn').removeClass("d-none");
+                        //$('#create-region-btn').removeClass("d-none");
                         updateHighlightRegion();
                     } else if (wordSelection.start) {
                         wordSelection.start.addClass('bg-warning');
-                        $('#create-region-btn').addClass("d-none");
+                        //$('#create-region-btn').addClass("d-none");
                     } else {
-                        $('#create-region-btn').addClass("d-none");
+                        //$('#create-region-btn').addClass("d-none");
                     }
                 }
 
                 function updateHighlightRegion() {
-                    if (highlightRegion) {
-                        highlightRegion.remove();
-                    }
                     let startTime = parseFloat(wordSelection.start.attr('data-start'));
                     let endTime = parseFloat(wordSelection.end.attr('data-end'));
                     if (startTime > endTime) {
                         [startTime, endTime] = [endTime, startTime];
                     }
-                    highlightRegion = wsRegions.addRegion({
+                    wsRegions.addRegion({
                         start: startTime,
                         end: endTime,
                         color: 'rgba(255, 165, 0, 0.3)',
@@ -346,20 +341,22 @@
 
                 function createRegionFromWaveformSelection() {
                     if (highlightRegion) {
+                        let data = { description: '#' + (regions.length + 1)};
                         let newRegion = wsRegions.addRegion({
                             start: highlightRegion.start,
                             end: highlightRegion.end,
                             color: regionsColor,
                             drag: true,
                             resize: true,
-                            data: { description: '' }
+                            content: data.description,
                         });
+                        newRegion.data = data;
 
                         regions.push(newRegion);
                         updateRegionsList();
                         //highlightRegion.remove();
                         //highlightRegion = null;
-                        $('#create-region-btn').addClass('d-none');
+                        //$('#create-region-btn').addClass('d-none');
                         saveRegions();
                     }
                 }
@@ -422,7 +419,7 @@
                 <div class="col-md-7">
                 <div class="input-group">
                 <input type="text" class="form-control form-control-sm" placeholder="Add description" value="${region.data && region.data.description ? region.data.description : ''}">
-                <button class="btn btn-primary btn-sm">Save</button>
+                <button class="save-button btn btn-primary btn-sm">Save</button>
                 </div>
                 </div>
                 <div class="col-md-2">
@@ -438,16 +435,25 @@
                         });
                         $li.find('.delete-region-btn').click(function () {
                             if (confirm('Are you sure you want to delete this region?')) {
-                                region.remove();
                                 regions = regions.filter(r => r !== region);
+                                region.remove();
                                 updateRegionsList();
                                 saveRegions();
                             }
                         });
-                        $li.find('input').on('change', function () {
+                        
+                        function updateDescription(region) {
                             if (!region.data) region.data = {};
-                            region.data.description = $(this).val();
+                            region.data.description = $li.find('input').val();
+                            region.content.textContent = region.data.description;
                             saveRegions();
+                        }
+                        
+                        $li.find('.save-button').on('click', function () {
+                            updateDescription.bind(null, region)();
+                        });
+                        $li.find('input').on('change', function () {
+                            updateDescription.bind(null, region)();
                         });
                         $list.append($li);
                     });
