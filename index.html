@@ -97,6 +97,10 @@
 
 
                 wavesurfer.on('ready', function () {
+                    if (wavesurfer.inited) {
+                        return;
+                    }
+                    wavesurfer.inited = true;
                     console.log('WaveSurfer is ready');
                     wavesurfer.seekTo(0);
 
