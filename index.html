@@ -110,17 +110,10 @@
                     });
 
                     wsRegions.on('region-created', function (region) {
-                        let _regions = wsRegions.regions;
-                        let regionIndex = _regions.findIndex((r) => r.id === region.id);
-                        if (regionIndex > 0) {
-                            _regions.slice(0, 1).forEach((t => t.remove()));
+                        if (highlightRegion && highlightRegion !== region) {
+                            highlightRegion.remove();
                         }
-                        if (regionIndex === -1) {
-                            if (highlightRegion?.element) {
-                                highlightRegion.remove();
-                            }   
-                            highlightRegion = region;
-                        }
+                        highlightRegion = region;
                         $('#create-region-btn').removeClass('d-none');
                     });
 
