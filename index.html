@@ -514,20 +514,6 @@
                     wavesurfer.setScroll(currentScroll + direction * scrollSpeed);
                 });
 
-                wavesurfer.on('audioprocess', function () {
-                    if (!wavesurfer.isPlaying()) return;
-
-                    const currentTime = wavesurfer.getCurrentTime();
-                    const duration = wavesurfer.getDuration();
-                    const containerWidth = wavesurfer.getWrapper().clientWidth;
-                    const scrollWidth = wavesurfer.getScrollWidth();  // ERROR: getScrollWidth is not a function
-
-                    const progress = currentTime / duration;
-                    const centerPosition = progress * scrollWidth - containerWidth / 2;
-
-                    wavesurfer.setScroll(Math.max(0, centerPosition));
-                });
-
                 function saveRegions() {
                     const regionsData = regions.map(region => ({
                         start: region.start,
