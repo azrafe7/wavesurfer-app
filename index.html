@@ -480,32 +480,11 @@
                 });
 
                 function clearAllRegions() {
-
                     wsRegions.clearRegions();
-
-
-                    regions.forEach(region => {
-                        if (region && typeof region.remove === 'function') {
-                            try {
-                                region.remove();
-                            } catch (e) {
-                                console.warn('Error removing region:', e);
-                            }
-                        }
-                    });
-
-
                     regions = [];
-
-
                     updateRegionsList();
-
-
                     clearWordSelection();
-
-
                     saveRegions();
-
                     console.log('All regions cleared');
                 }
 
