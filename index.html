@@ -110,7 +110,7 @@
                     });
 
                     wsRegions.on('region-created', function (region) {
-                        if (highlightRegion && highlightRegion !== region) {
+                        if (highlightRegion && highlightRegion !== region && !isRegionInRegions(highlightRegion, regions)) {
                             highlightRegion.remove();
                         }
                         highlightRegion = region;
@@ -124,7 +124,6 @@
                             updateRegionsList();
                             saveRegions();
                         } else {
-                            highlightRegion = region;
                             $('#create-region-btn').removeClass('d-none');
                         }
                     });
@@ -161,6 +160,15 @@
                         $('#create-region-btn').click();
                     }
                 });
+
+                function isRegionInRegions(region, regions) {
+                    for (let r of regions) {
+                        if (r.id == region.id) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
 
                 function togglePlayPause() {
                     isPlayingFull = true;
@@ -349,8 +357,8 @@
 
                         regions.push(newRegion);
                         updateRegionsList();
-                        highlightRegion.remove();
-                        highlightRegion = null;
+                        //highlightRegion.remove();
+                        //highlightRegion = null;
                         $('#create-region-btn').addClass('d-none');
                         saveRegions();
                     }
