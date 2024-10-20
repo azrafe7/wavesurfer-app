@@ -146,7 +146,7 @@
                 });
 
                 $(document).on('keydown', function (e) {
-                    if ($('#search-input').is(':focus')) return;
+                    if ($('input').is(':focus')) return;
 
                     if (e.key === ' ') {
                         e.preventDefault();
@@ -454,6 +454,7 @@
                         });
                         $li.find('input').on('change', function () {
                             updateDescription.bind(null, region)();
+                            $(this).blur()
                         });
                         $list.append($li);
                     });
