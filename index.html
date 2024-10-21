@@ -9,7 +9,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <!--script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script-->
+    <script src="./regions.min.js"></script>
     <style>
         #video-container {
             width: 100%;
@@ -52,6 +53,8 @@
         }
     </style>
     <script>
+        let _wsRegions;
+        let _ws;
         $(document).ready(function () {
             if (typeof wavesurfer === 'undefined') {
                 const videoUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.mp4';
@@ -117,6 +120,13 @@
                         color: highlightRegionColor,
                     });
 
+                    _ws = wavesurfer;
+                    _wsRegions = wsRegions;
+                    
+                    wsRegions.on('region-removed', function (region) {
+                        region.subscriptions;
+                    });
+                    
                     wsRegions.on('region-created', function (region) {
                         let removeHighlightRegion = highlightRegion && highlightRegion !== region && !isRegionInRegions(highlightRegion, regions)
                         console.log(removeHighlightRegion);
@@ -124,9 +134,9 @@
                             //if (!highlightRegion.element) debugger;
                             invalidateRegion(highlightRegion);
                         }
-                        console.log(wsRegions.regions.length);
+                        console.log(wsRegions.regions.length, wsRegions.subscriptions.length);
                         highlightRegion = region;
-                        
+                        //create subtitle region snf then move word selections!
                         // double-click on region to play it
                         region.on('dblclick', () => {
                             console.log('region-dblclick');
@@ -151,12 +161,12 @@
 
                 function invalidateRegion(region) {
                     if (region) {
-                        if (region.element) {
+                        //if (region.element) {
                             region.remove();
-                        } else {
-                            region.subscriptions.forEach((t => t()));
-                        }
-                        region = null;
+                        //} else {
+                        //    region.subscriptions.forEach((t => t()));
+                        //}
+                        //region = null;
                     }
                 }
 
@@ -338,16 +348,18 @@
                 }
 
                 function updateWordSelection() {
-                    $('.clickable-word').removeClass('bg-warning');
+                    let clickableWords = $('.clickable-word');
+                    clickableWords.removeClass('bg-warning');
                     if (wordSelection.start && wordSelection.end) {
-                        let startIndex = $('.clickable-word').index(wordSelection.start);
-                        let endIndex = $('.clickable-word').index(wordSelection.end);
+                        let startIndex = clickableWords.index(wordSelection.start);
+                        let endIndex = clickableWords.index(wordSelection.end);
+                        // if selection is backwards
                         if (startIndex > endIndex) {
                             [startIndex, endIndex] = [endIndex, startIndex];
                         }
-                        $('.clickable-word').slice(startIndex, endIndex + 1).addClass('bg-warning');
+                        clickableWords.slice(startIndex, endIndex + 1).addClass('bg-warning');
                         //$createRegionButton.removeClass("d-none");
-                        updateHighlightRegion();
+                        updateHighlightRegion(startIndex, endIndex);
                     } else if (wordSelection.start) {
                         wordSelection.start.addClass('bg-warning');
                         //$createRegionButton.addClass("d-none");
@@ -357,12 +369,10 @@
                     updateButtons();
                 }
 
-                function updateHighlightRegion() {
-                    let startTime = parseFloat(wordSelection.start.attr('data-start'));
-                    let endTime = parseFloat(wordSelection.end.attr('data-end'));
-                    if (startTime > endTime) {
-                        [startTime, endTime] = [endTime, startTime];
-                    }
+                function updateHighlightRegion(startWordIndex, endWordIndex) {
+                    let clickableWords = $('.clickable-word');
+                    let startTime = parseFloat($(clickableWords[startWordIndex]).attr('data-start'));
+                    let endTime = parseFloat($(clickableWords[endWordIndex]).attr('data-end'));
                     if (highlightRegion) {
                         highlightRegion.start = startTime;
                         highlightRegion.end = endTime;
@@ -398,7 +408,7 @@
                     saveRegions();
                 }
 
-                function createRegionFromWordSelection() {
+                /*function createRegionFromWordSelection() {
                     if (wordSelection.start && wordSelection.end) {
                         let startTime = parseFloat(wordSelection.start.attr('data-start'));
                         let endTime = parseFloat(wordSelection.end.attr('data-end'));
@@ -409,7 +419,7 @@
                         addSavedRegion(startTime, endTime);
                         clearWordSelection();
                     }
-                }
+                }*/
 
                 function createRegionFromWaveformSelection() {
                     if (highlightRegion) {
@@ -417,7 +427,8 @@
                         let endTime = highlightRegion.end;
                         let description = '#' + (regions.length + 1);
                         addSavedRegion(startTime, endTime, description);
-                        updateButtons();
+                        clearWordSelection();
+                        highlightRegion = null;
                     }
                 }
 
