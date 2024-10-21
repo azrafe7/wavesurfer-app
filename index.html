@@ -121,11 +121,12 @@
                         let removeHighlightRegion = highlightRegion && highlightRegion !== region && !isRegionInRegions(highlightRegion, regions)
                         console.log(removeHighlightRegion);
                         if (removeHighlightRegion) {
-                            highlightRegion.remove();
+                            //if (!highlightRegion.element) debugger;
+                            invalidateRegion(highlightRegion);
                         }
                         console.log(wsRegions.regions.length);
                         highlightRegion = region;
-                        $createRegionButton.removeClass('d-none');
+                        updateButtons();
                     });
 
                     wsRegions.on('region-updated', function (region) {
@@ -142,7 +143,16 @@
                     }
                 });
 
-
+                function invalidateRegion(region) {
+                    if (region) {
+                        if (region.element) {
+                            region.remove();
+                        } else {
+                            region.subscriptions.forEach((t => t()));
+                        }
+                        region = null;
+                    }
+                }
 
                 wavesurfer.on('error', function (e) {
                     console.error('WaveSurfer error:', e);
@@ -171,7 +181,12 @@
                 });
 
                 function isRegionInRegions(region, regions) {
-                    return regions.findIndex(r => r.id === region.id) >= 0;
+                    for (let r of regions) {
+                        if (r.id == region.id) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
 
                 function togglePlayPause() {
@@ -198,6 +213,8 @@
                 });
 
                 function updateButtons() {
+                    let createRegionButtonVisible = highlightRegion && !isRegionInRegions(highlightRegion, regions);
+                    $createRegionButton.toggleClass("d-none", !createRegionButtonVisible);
                 }
 
                 function syncVideoAndWaveform() {
@@ -270,7 +287,7 @@
                     });
 
                     $(document).mouseup(function () {
-                        // updateWordSelection();
+                        //invalidateRegion(highlightRegion);
                     });
 
                     $container.on('mousemove', '.clickable-word', function (event) {
@@ -331,6 +348,7 @@
                     } else {
                         //$createRegionButton.addClass("d-none");
                     }
+                    updateButtons();
                 }
 
                 function updateHighlightRegion() {
@@ -393,6 +411,7 @@
                         let endTime = highlightRegion.end;
                         let description = '#' + (regions.length + 1);
                         addSavedRegion(startTime, endTime, description);
+                        updateButtons();
                     }
                 }
 
@@ -404,7 +423,7 @@
                         start: null,
                         end: null
                     };
-                    $createRegionButton.addClass("d-none");
+                    updateButtons();
                     /*if (highlightRegion && typeof highlightRegion.remove === 'function') {
                         try {
                             highlightRegion.remove();
@@ -519,6 +538,8 @@
                     regions = [];
                     updateRegionsList();
                     clearWordSelection();
+                    highlightRegion = null;
+                    updateButtons();
                     saveRegions();
                     console.log('All regions cleared');
                 }
