@@ -53,8 +53,10 @@
         }
     </style>
     <script>
+        // for debugging
         let _wsRegions;
         let _ws;
+        
         $(document).ready(function () {
             if (typeof wavesurfer === 'undefined') {
                 const videoUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.mp4';
@@ -330,19 +332,6 @@
                         if (event.type === 'dblclick') {
                             wordSelection.end = $word;
                             updateWordSelection();
-                        }
-                    }
-                }
-
-                function throttle(callback, limit) {
-                    var waiting = false;                      // Initially, we're not waiting
-                    return function() {                      // We return a throttled function
-                        if (!waiting) {                       // If we're not waiting
-                            callback.apply(this, arguments);  // Execute users function
-                            waiting = true;                   // Prevent future invocations
-                            setTimeout(function() {          // After a period of time
-                                waiting = false;              // And allow future invocations
-                            }, limit);
                         }
                     }
                 }
