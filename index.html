@@ -56,7 +56,8 @@
             if (typeof wavesurfer === 'undefined') {
                 const videoUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.mp4';
                 const whisperJsonUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.json';
-                const regionsColor = 'rgba(255, 0, 0, 0.3)';
+                const savedRegionsColor = 'rgba(255, 0, 0, 0.3)';
+                const highlightRegionColor = 'rgba(255, 165, 0, 0.3)';
 
                 // jquery elements
                 const $playPauseButton = $('#play-pause-btn');
@@ -113,7 +114,7 @@
 
                     wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
                     wsRegions.enableDragSelection({
-                        color: 'rgba(255, 165, 0, 0.3)'
+                        color: highlightRegionColor,
                     });
 
                     wsRegions.on('region-created', function (region) {
@@ -346,7 +347,7 @@
                         wsRegions.addRegion({
                             start: startTime,
                             end: endTime,
-                            color: 'rgba(255, 165, 0, 0.3)',
+                            color: highlightRegionColor,
                             drag: true,
                             resize: true
                         });
@@ -358,7 +359,7 @@
                     let newRegion = wsRegions.addRegion({
                         start: startTime,
                         end: endTime,
-                        color: regionsColor,
+                        color: savedRegionsColor,
                         drag: true,
                         resize: true,
                         content: description,
@@ -592,7 +593,7 @@
                                     let newRegion = wsRegions.addRegion({
                                         start: regionData.start,
                                         end: regionData.end,
-                                        color: regionsColor,
+                                        color: savedRegionsColor,
                                         drag: true,
                                         resize: true,
                                         data: { description: regionData.description || '' }
