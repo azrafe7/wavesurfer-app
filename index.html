@@ -171,7 +171,7 @@
                 });
 
                 function isRegionInRegions(region, regions) {
-                    regions.findIndex(r => r.id === region.id)
+                    return regions.findIndex(r => r.id === region.id) >= 0;
                 }
 
                 function togglePlayPause() {
