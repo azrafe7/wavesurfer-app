@@ -110,9 +110,12 @@
                     });
 
                     wsRegions.on('region-created', function (region) {
-                        if (highlightRegion && highlightRegion !== region && !isRegionInRegions(highlightRegion, regions)) {
+                        let removeHighlightRegion = highlightRegion && highlightRegion !== region && !isRegionInRegions(highlightRegion, regions)
+                        console.log(removeHighlightRegion);
+                        if (removeHighlightRegion) {
                             highlightRegion.remove();
                         }
+                        console.log(wsRegions.regions.length);
                         highlightRegion = region;
                         $('#create-region-btn').removeClass('d-none');
                     });
@@ -240,6 +243,9 @@
                                 .attr('data-end', word.end)
                                 .mousedown(function (event) {
                                     handleWordMouseDown($(this), event);
+                                })
+                                .dblclick(function (event) {
+                                    handleWordMouseDown($(this), event);
                                 });
                             $sentence.append($word);
                         });
@@ -249,9 +255,12 @@
                     $('#create-region-btn').click(function () {
                         if (highlightRegion) {
                             createRegionFromWaveformSelection();
-                        } else if (wordSelection.start && wordSelection.end) {
-                            createRegionFromWordSelection();
+                        } else {
+                            alert("No region selected!");
                         }
+                        /* else if (wordSelection.start && wordSelection.end) {
+                            createRegionFromWordSelection();
+                        }*/
                     });
 
                     $(document).mouseup(function () {
@@ -274,10 +283,28 @@
                     } else {
                         clearWordSelection();
                         wordSelection.start = $word;
-                        let time = parseFloat($word.attr('data-start'));
-                        video.currentTime = time;
+                        let startTime = parseFloat($word.attr('data-start'));
+                        video.currentTime = startTime;
                         video.pause();
                         wavesurfer.pause();
+                        
+                        if (event.type === 'dblclick') {
+                            wordSelection.end = $word;
+                            updateWordSelection();
+                        }
+                    }
+                }
+
+                function throttle(callback, limit) {
+                    var waiting = false;                      // Initially, we're not waiting
+                    return function() {                      // We return a throttled function
+                        if (!waiting) {                       // If we're not waiting
+                            callback.apply(this, arguments);  // Execute users function
+                            waiting = true;                   // Prevent future invocations
+                            setTimeout(function() {          // After a period of time
+                                waiting = false;              // And allow future invocations
+                            }, limit);
+                        }
                     }
                 }
 
@@ -306,13 +333,39 @@
                     if (startTime > endTime) {
                         [startTime, endTime] = [endTime, startTime];
                     }
-                    wsRegions.addRegion({
+                    if (highlightRegion) {
+                        highlightRegion.start = startTime;
+                        highlightRegion.end = endTime;
+                        highlightRegion.renderPosition();
+                    } else {
+                        wsRegions.addRegion({
+                            start: startTime,
+                            end: endTime,
+                            color: 'rgba(255, 165, 0, 0.3)',
+                            drag: true,
+                            resize: true
+                        });
+                    }
+                }
+
+                function addSavedRegion(startTime, endTime, description) {
+                    let data = { description: description};
+                    let newRegion = wsRegions.addRegion({
                         start: startTime,
                         end: endTime,
-                        color: 'rgba(255, 165, 0, 0.3)',
-                        drag: false,
-                        resize: false
+                        color: regionsColor,
+                        drag: true,
+                        resize: true,
+                        content: description,
                     });
+                    newRegion.data = data;
+
+                    regions.push(newRegion);
+                    updateRegionsList();
+                    //highlightRegion.remove();
+                    //highlightRegion = null;
+                    //$('#create-region-btn').addClass('d-none');
+                    saveRegions();
                 }
 
                 function createRegionFromWordSelection() {
@@ -323,41 +376,17 @@
                             [startTime, endTime] = [endTime, startTime];
                         }
 
-                        let newRegion = wsRegions.addRegion({
-                            start: startTime,
-                            end: endTime,
-                            color: regionsColor,
-                            drag: true,
-                            resize: true,
-                            data: { description: '' }
-                        });
-
-                        regions.push(newRegion);
-                        updateRegionsList();
+                        addSavedRegion(startTime, endTime);
                         clearWordSelection();
-                        saveRegions();
                     }
                 }
 
                 function createRegionFromWaveformSelection() {
                     if (highlightRegion) {
-                        let data = { description: '#' + (regions.length + 1)};
-                        let newRegion = wsRegions.addRegion({
-                            start: highlightRegion.start,
-                            end: highlightRegion.end,
-                            color: regionsColor,
-                            drag: true,
-                            resize: true,
-                            content: data.description,
-                        });
-                        newRegion.data = data;
-
-                        regions.push(newRegion);
-                        updateRegionsList();
-                        //highlightRegion.remove();
-                        //highlightRegion = null;
-                        //$('#create-region-btn').addClass('d-none');
-                        saveRegions();
+                        let startTime = highlightRegion.start;
+                        let endTime = highlightRegion.end;
+                        let description = '#' + (regions.length + 1);
+                        addSavedRegion(startTime, endTime, description);
                     }
                 }
 
@@ -370,14 +399,14 @@
                         end: null
                     };
                     $('#create-region-btn').addClass("d-none");
-                    if (highlightRegion && typeof highlightRegion.remove === 'function') {
+                    /*if (highlightRegion && typeof highlightRegion.remove === 'function') {
                         try {
                             highlightRegion.remove();
                         } catch (e) {
                             console.warn('Error removing preliminary region:', e);
                         }
                         highlightRegion = null;
-                    }
+                    }*/
                 }
 
                 $('#search-btn').click(function () {
