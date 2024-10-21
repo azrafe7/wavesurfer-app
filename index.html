@@ -126,6 +126,12 @@
                         }
                         console.log(wsRegions.regions.length);
                         highlightRegion = region;
+                        
+                        // double-click on region to play it
+                        region.on('dblclick', () => {
+                            console.log('region-dblclick');
+                            playRegion(region);
+                        });
                         updateButtons();
                     });
 
