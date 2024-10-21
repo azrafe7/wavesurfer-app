@@ -58,6 +58,13 @@
                 const whisperJsonUrl = 'Why_the_World_s_Best_Mathematicians_Are_Hoarding_Chalk_x264.json';
                 const regionsColor = 'rgba(255, 0, 0, 0.3)';
 
+                // jquery elements
+                const $playPauseButton = $('#play-pause-btn');
+                const $createRegionButton = $('#create-region-btn');
+                const $clearRegionsButton = $('#clear-regions-btn');
+                const $searchButton = $('#search-btn');
+                const $searchInput = $('#search-input');
+
                 let video = $('#video-player')[0];
                 let whisperData = null;
                 let regions = [];
@@ -117,7 +124,7 @@
                         }
                         console.log(wsRegions.regions.length);
                         highlightRegion = region;
-                        $('#create-region-btn').removeClass('d-none');
+                        $createRegionButton.removeClass('d-none');
                     });
 
                     wsRegions.on('region-updated', function (region) {
@@ -144,7 +151,7 @@
                     video.currentTime = wavesurfer.getCurrentTime();
                 });
 
-                $('#play-pause-btn').on('click', function () {
+                $playPauseButton.on('click', function () {
                     togglePlayPause();
                 });
 
@@ -158,17 +165,12 @@
 
                     if (e.ctrlKey && e.altKey && e.key === 'c') {
                         e.preventDefault();
-                        $('#create-region-btn').click();
+                        $createRegionButton.click();
                     }
                 });
 
                 function isRegionInRegions(region, regions) {
-                    for (let r of regions) {
-                        if (r.id == region.id) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    regions.findIndex(r => r.id === region.id)
                 }
 
                 function togglePlayPause() {
@@ -193,6 +195,9 @@
                     updateCurrentTime();
                     highlightCurrentWord();
                 });
+
+                function updateButtons() {
+                }
 
                 function syncVideoAndWaveform() {
                     if (Math.abs(wavesurfer.getCurrentTime() - video.currentTime) > 0.1) {
@@ -252,7 +257,7 @@
                         $container.append($sentence);
                     });
 
-                    $('#create-region-btn').click(function () {
+                    $createRegionButton.click(function () {
                         if (highlightRegion) {
                             createRegionFromWaveformSelection();
                         } else {
@@ -317,13 +322,13 @@
                             [startIndex, endIndex] = [endIndex, startIndex];
                         }
                         $('.clickable-word').slice(startIndex, endIndex + 1).addClass('bg-warning');
-                        //$('#create-region-btn').removeClass("d-none");
+                        //$createRegionButton.removeClass("d-none");
                         updateHighlightRegion();
                     } else if (wordSelection.start) {
                         wordSelection.start.addClass('bg-warning');
-                        //$('#create-region-btn').addClass("d-none");
+                        //$createRegionButton.addClass("d-none");
                     } else {
-                        //$('#create-region-btn').addClass("d-none");
+                        //$createRegionButton.addClass("d-none");
                     }
                 }
 
@@ -364,7 +369,7 @@
                     updateRegionsList();
                     //highlightRegion.remove();
                     //highlightRegion = null;
-                    //$('#create-region-btn').addClass('d-none');
+                    //$createRegionButton.addClass('d-none');
                     saveRegions();
                 }
 
@@ -398,7 +403,7 @@
                         start: null,
                         end: null
                     };
-                    $('#create-region-btn').addClass("d-none");
+                    $createRegionButton.addClass("d-none");
                     /*if (highlightRegion && typeof highlightRegion.remove === 'function') {
                         try {
                             highlightRegion.remove();
@@ -409,18 +414,18 @@
                     }*/
                 }
 
-                $('#search-btn').click(function () {
+                $searchButton.click(function () {
                     performSearch();
                 });
 
-                $('#search-input').on('keyup', function (e) {
+                $searchInput.on('keyup', function (e) {
                     if (e.key === 'Enter') {
                         performSearch();
                     }
                 });
 
                 function performSearch() {
-                    let searchTerm = $('#search-input').val().toLowerCase();
+                    let searchTerm = $searchInput.val().toLowerCase();
                     if (whisperData && searchTerm) {
                         highlightSearchResult(searchTerm);
                     }
@@ -502,7 +507,7 @@
                     }, 10);
                 }
 
-                $('#clear-regions-btn').click(function () {
+                $clearRegionsButton.click(function () {
                     if (confirm('Are you sure you want to clear all regions?')) {
                         clearAllRegions();
                     }
@@ -627,7 +632,7 @@
                 }
 
                 $(document).on('click', resumeAudioContext);
-                $('#play-pause-btn').on('click', resumeAudioContext);
+                $playPauseButton.on('click', resumeAudioContext);
 
                 $('[data-toggle="tooltip"]').tooltip();
 
